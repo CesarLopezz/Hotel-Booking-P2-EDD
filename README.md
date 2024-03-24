@@ -1,5 +1,3 @@
-# Hotel-Booking-P2-EDD
-
 
 Hotel Booking: Tablas de Dispersión
 (Hash Tables) y Árboles Binarios de Búsqueda.
