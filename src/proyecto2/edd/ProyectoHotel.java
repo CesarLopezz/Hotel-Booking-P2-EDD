@@ -14,18 +14,23 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.HashMap;
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class ProyectoHotel {
-    private static HashMap<String, String[]> reservas;
+    private static ArbolABB arbolReservas; // Árbol binario de búsqueda para almacenar las reservaciones
     private static HashMap<String, String> habitaciones;
     private static HashMap<String, String> estado;
-    private static HashMap<String, String[]> historico;
+    private static ArbolHistorial arbolHistorial;
+    
 
     public static void main(String[] args) {
         try {
             cargarArchivosCSV();
             imprimirDatos();
+            buscarClientesHospedados();
+            buscarReservacion();
+            buscarHistorial();
         } catch (IOException e) {
             System.err.println("Error al cargar datos desde los archivos CSV: " + e.getMessage());
         }
@@ -34,10 +39,63 @@ public class ProyectoHotel {
     public static void cargarArchivosCSV() throws IOException {
         cargarReservasDesdeCSV();
         cargarHabitacionesDesdeCSV();
+        cargarEstadoDesdeCSV();
+        cargarHistorialDesdeCSV();
         // Cargar estado y historico desde CSV de manera similar
     }
+    
+    public static void buscarClientesHospedados() {
+        // Solicitar al usuario que ingrese el nombre completo del cliente
+        String nombreCompleto = JOptionPane.showInputDialog("Ingrese el nombre completo del cliente:");
+        if (nombreCompleto != null && !nombreCompleto.isEmpty()) {
+            // Buscar en el HashMap el número de habitación asociado al nombre completo del cliente
+            String numHabitacion = estado.get(nombreCompleto);
+            if (numHabitacion != null) {
+                JOptionPane.showMessageDialog(null, nombreCompleto + " se encuentra hospedado en la habitación número " + numHabitacion);
+            } else {
+                JOptionPane.showMessageDialog(null, nombreCompleto + " no se encuentra hospedado en el hotel.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "Debe ingresar un nombre completo.");
+        }
+    }
 
-    public static void cargarReservasDesdeCSV() throws IOException {
+    public static void cargarEstadoDesdeCSV() {
+        estado = new HashMap<>();
+
+        // Abre el diálogo de selección de archivo
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Seleccionar archivo de estado");
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos CSV", "csv"));
+
+        int seleccion = fileChooser.showOpenDialog(null);
+
+        if (seleccion == JFileChooser.APPROVE_OPTION) {
+            File archivoSeleccionado = fileChooser.getSelectedFile();
+            String rutaArchivo = archivoSeleccionado.getAbsolutePath();
+
+            try (BufferedReader br = new BufferedReader(new FileReader(rutaArchivo))) {
+                String linea;
+                while ((linea = br.readLine()) != null) {
+                    String[] campos = linea.split(",");
+                    if (campos.length >= 2) { // Asegurarse de que hay al menos dos campos (número de habitación y nombre del cliente)
+                        String numHabitacion = campos[0].trim();
+                        String nombreCompleto = campos[2].trim() + " " + campos[1].trim(); // Concatenar apellido y nombre
+                        estado.put(nombreCompleto, numHabitacion);
+                    }
+                }
+                System.out.println("Estado de las habitaciones cargado correctamente desde el archivo CSV.");
+            } catch (IOException e) {
+                System.err.println("Error al leer el archivo CSV de estado: " + e.getMessage());
+            }
+        } else {
+            System.out.println("No se seleccionó ningún archivo de estado.");
+        }
+    }
+    
+    public static void cargarReservasDesdeCSV() {
+        arbolReservas = new ArbolABB();
+
         // Abre el diálogo de selección de archivo
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setDialogTitle("Seleccionar archivo de reservas");
@@ -49,22 +107,47 @@ public class ProyectoHotel {
             File archivoSeleccionado = fileChooser.getSelectedFile();
             String rutaArchivo = archivoSeleccionado.getAbsolutePath();
 
-            reservas = new HashMap<>();
-
-            try (BufferedReader br = new BufferedReader(new FileReader(rutaArchivo))) {
+            try (BufferedReader br = new BufferedReader(new FileReader(new File(rutaArchivo)))) {
                 String linea;
                 while ((linea = br.readLine()) != null) {
-                    String[] datos = linea.split(","); // Separar los datos por comas
-                    String cedula = datos[0].trim();
-                    String[] infoReserva = new String[datos.length - 1];
-                    System.arraycopy(datos, 1, infoReserva, 0, infoReserva.length);
-                    reservas.put(cedula, infoReserva);
+                    String[] campos = linea.split(",");
+                    String cedula = campos[0].trim();
+                    String[] datosReserva = new String[campos.length - 1];
+                    System.arraycopy(campos, 1, datosReserva, 0, datosReserva.length);
+                    arbolReservas.insertar(cedula, datosReserva);
                 }
+                System.out.println("Reservas cargadas correctamente desde el archivo CSV.");
+            } catch (IOException e) {
+                System.err.println("Error al leer el archivo CSV de reservas: " + e.getMessage());
             }
         } else {
             System.out.println("No se seleccionó ningún archivo de reservas.");
         }
     }
+    public static void buscarReservacion() {
+        // Solicitar al usuario que ingrese la cédula del cliente
+        String cedula = JOptionPane.showInputDialog("Ingrese la cédula del cliente:");
+
+        if (cedula != null && !cedula.isEmpty()) {
+            // Buscar la reservación correspondiente a la cédula ingresada
+            String[] datosReserva = arbolReservas.buscar(cedula);
+            if (datosReserva != null) {
+                // Mostrar los datos de la reservación
+                String mensaje = "Datos de la reservación:\n";
+                mensaje += "Cédula: " + cedula + "\n";
+                mensaje += "Nombre: " + datosReserva[0] + "\n";
+                mensaje += "Apellido: " + datosReserva[1] + "\n";
+                mensaje += "Email: " + datosReserva[2] + "\n";
+                // Agregar más información si es necesario
+                JOptionPane.showMessageDialog(null, mensaje);
+            } else {
+                JOptionPane.showMessageDialog(null, "No se encontró ninguna reservación para la cédula ingresada.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(null, "Debe ingresar la cédula del cliente.");
+        }
+    }
+    
 
     public static void cargarHabitacionesDesdeCSV() throws IOException {
         // Abre el diálogo de selección de archivo
@@ -91,15 +174,72 @@ public class ProyectoHotel {
             System.out.println("No se seleccionó ningún archivo de habitaciones.");
         }
     }
+    
+    public static void cargarHistorialDesdeCSV() {
+        arbolHistorial = new ArbolHistorial();
+
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setDialogTitle("Seleccionar archivo de historial de habitaciones");
+        fileChooser.setFileFilter(new FileNameExtensionFilter("Archivos CSV", "csv"));
+
+        int seleccion = fileChooser.showOpenDialog(null);
+
+        if (seleccion == JFileChooser.APPROVE_OPTION) {
+            File archivoSeleccionado = fileChooser.getSelectedFile();
+            String rutaArchivo = archivoSeleccionado.getAbsolutePath();
+
+            try (BufferedReader br = new BufferedReader(new FileReader(new File(rutaArchivo)))) {
+                String linea;
+                while ((linea = br.readLine()) != null) {
+                    String[] campos = linea.split(",");
+                    String numHabitacion = campos[6].trim();
+                    String[] historial = new String[campos.length - 1];
+                    System.arraycopy(campos, 1, historial, 0, historial.length);
+                    arbolHistorial.insertar(numHabitacion, historial);
+                }
+                System.out.println("Historial de habitaciones cargado correctamente desde el archivo CSV.");
+            } catch (IOException e) {
+                System.err.println("Error al leer el archivo CSV de historial de habitaciones: " + e.getMessage());
+            }
+        } else {
+            System.out.println("No se seleccionó ningún archivo de historial de habitaciones.");
+        }
+    }
+    
+    public static void buscarHistorial() {
+        while (true) {
+            String numHabitacion = JOptionPane.showInputDialog("Ingrese el número de habitación (o escriba 'salir' para terminar):");
+
+            if (numHabitacion == null || numHabitacion.equalsIgnoreCase("salir")) {
+                break; // Salir del bucle si se ingresa "salir" o se cierra la ventana
+            }
+
+            if (!numHabitacion.isEmpty()) {
+                String[] historial = arbolHistorial.buscarHistorial(numHabitacion);
+                if (historial != null) {
+                    String mensaje = "Historial de la habitación " + numHabitacion + ":\n";
+                    for (String info : historial) {
+                        mensaje += info + "\n";
+                    }
+                    JOptionPane.showMessageDialog(null, mensaje);
+                } else {
+                    JOptionPane.showMessageDialog(null, "No se encontró historial para la habitación " + numHabitacion + ".");
+                }
+            } else {
+                JOptionPane.showMessageDialog(null, "Debe ingresar el número de habitación.");
+            }
+        }
+    }
+
 
     // Métodos para cargar estado y historico desde CSV de manera similar
 
     public static void imprimirDatos() {
         // Imprimir las reservas
-        System.out.println("Reservas:");
-        for (String cedula : reservas.keySet()) {
-            System.out.println("Cédula: " + cedula + ", Datos: " + String.join(", ", reservas.get(cedula)));
-        }
+        //System.out.println("Reservas:");
+        //for (String cedula : reservas.keySet()) {
+        //    System.out.println("Cédula: " + cedula + ", Datos: " + String.join(", ", reservas.get(cedula)));
+        //}
 
         // Imprimir las habitaciones
         System.out.println("\nHabitaciones:");
@@ -108,6 +248,14 @@ public class ProyectoHotel {
         }
 
         // Imprimir el estado
+        System.out.println("\nEstado:");
+        for (String numHabitacion1 : estado.keySet()) {
+            System.out.println("Número de habitación: " + numHabitacion1 + ", Datos: " + estado.get(numHabitacion1));
+        }
         // Imprimir el historico
+        //System.out.println("\nHistorico:");
+        //for (String cedula : historico.keySet()) {
+        //    System.out.println("Cédula: " + cedula + ", Datos: " + String.join(", ", historico.get(cedula)));
+        //}
     }
 }
