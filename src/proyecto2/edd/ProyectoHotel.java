@@ -11,30 +11,64 @@ package proyecto2.edd;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.HashMap;
+import java.util.Map;
 import javax.swing.JFileChooser;
 import javax.swing.JOptionPane;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
 public class ProyectoHotel {
     private static ArbolABB arbolReservas; // Árbol binario de búsqueda para almacenar las reservaciones
+    //private static HashMap<String, String> reservas;
     private static HashMap<String, String> habitaciones;
     private static HashMap<String, String> estado;
     private static ArbolHistorial arbolHistorial;
-    
+    //private static HashMap<String, String> clientesHospedados;
+
 
     public static void main(String[] args) {
         try {
+            //clientesHospedados = new HashMap<>();
             cargarArchivosCSV();
             imprimirDatos();
             buscarClientesHospedados();
             buscarReservacion();
             buscarHistorial();
+            String numHab = "7";
+            realizarCheckIn(numHab);
+            
+            
         } catch (IOException e) {
             System.err.println("Error al cargar datos desde los archivos CSV: " + e.getMessage());
         }
     }
+    
+    public static void realizarCheckIn(String numHabitacion) {
+        // Verificar si la habitación está disponible para realizar el check-in
+        if (estado.containsKey(numHabitacion) && estado.get(numHabitacion).equals("disponible")) {
+            estado.put(numHabitacion, "ocupado"); // Actualizar el estado de la habitación a ocupado
+            guardarEstadoEnCSV(); // Guardar el estado actualizado en el archivo CSV
+            System.out.println("Check-in realizado correctamente en la habitación " + numHabitacion);
+        } else {
+            System.out.println("La habitación " + numHabitacion + " no está disponible para realizar el check-in.");
+        }
+    }
+    
+    public static void guardarEstadoEnCSV() {
+        // Código para guardar el estado actualizado en el archivo CSV
+        try (PrintWriter writer = new PrintWriter(new FileWriter("estado.csv"))) {
+            for (Map.Entry<String, String> entry : estado.entrySet()) {
+                writer.println(entry.getKey() + "," + entry.getValue());
+            }
+            System.out.println("Estado de las habitaciones guardado correctamente en el archivo CSV.");
+        } catch (IOException e) {
+            System.err.println("Error al guardar el estado en el archivo CSV: " + e.getMessage());
+        }
+    }
+    
 
     public static void cargarArchivosCSV() throws IOException {
         cargarReservasDesdeCSV();
